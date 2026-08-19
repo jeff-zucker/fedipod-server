@@ -1,0 +1,67 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/fedipod-css-gateway/^0.0.0/components/context.jsonld"
+  ],
+  "@graph": [
+    {
+      "comment": "The FediPod gateway/front handler. Set args_frontHost to the apex the front answers on (e.g. fedipod.net) and args_frontOrigin to its origin; pod subdomains fall through to CSS untouched. Field names carry the args_ prefix the generator produced from the constructor's options object.",
+      "@id": "urn:fedipod:gateway:Handler",
+      "@type": "FediPodGatewayHandler",
+      "args_resourceStore": { "@id": "urn:solid-server:default:ResourceStore" },
+      "args_frontHost": "fedipod.net",
+      "args_frontOrigin": { "@id": "urn:solid-server:default:variable:baseUrl" },
+      "args_directoryContainer": "/.internal/fedipod/directory/",
+      "args_offersPods": false,
+      "args_clusterManager": { "@id": "urn:solid-server:default:ClusterManager" },
+      "args_agentRegistryContainer": "/.internal/fedipod/agents/"
+    },
+    {
+      "comment": "The live feed for a pod-hosted identity. A websocket upgrade never enters the request waterfall — CSS routes it through a handler list of its own — so this is a second class holding the same handler instance. Appending to the list here unions with whichever notification configuration the deployment loads.",
+      "@id": "urn:fedipod:gateway:StreamingHandler",
+      "@type": "FediPodStreamingHandler",
+      "args_gateway": { "@id": "urn:fedipod:gateway:Handler" }
+    },
+    {
+      "@id": "urn:solid-server:default:WebSocketHandler",
+      "@type": "WaterfallHandler",
+      "handlers": [
+        { "@id": "urn:fedipod:gateway:StreamingHandler" }
+      ]
+    },
+    {
+      "comment": "Starting each configured identity when the server starts, and stopping it cleanly when the server stops. The same handler instance does both, which is what InitializableHandler and FinalizableHandler are for. With args_agentPods unset both are no-ops.",
+      "@id": "urn:solid-server:default:PrimaryParallelInitializer",
+      "@type": "ParallelHandler",
+      "handlers": [
+        {
+          "@type": "InitializableHandler",
+          "initializable": { "@id": "urn:fedipod:gateway:Handler" }
+        }
+      ]
+    },
+    {
+      "@id": "urn:solid-server:default:Finalizer",
+      "@type": "ParallelHandler",
+      "handlers": [
+        {
+          "@type": "FinalizableHandler",
+          "finalizable": { "@id": "urn:fedipod:gateway:Handler" }
+        }
+      ]
+    },
+    {
+      "comment": "Insert the handler into the routing waterfall just before the LDP catch-all, so it claims only the front routes and everything else stays normal CSS. OverrideListInsertBefore is available in componentsjs 5.x (which CSS 7 uses).",
+      "@type": "Override",
+      "overrideInstance": { "@id": "urn:solid-server:default:BaseHttpHandler" },
+      "overrideSteps": [
+        {
+          "@type": "OverrideListInsertBefore",
+          "overrideParameter": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/dist/util/handlers/WaterfallHandler.jsonld#WaterfallHandler_handlers" },
+          "overrideTarget": { "@id": "urn:solid-server:default:LdpHandler" },
+          "overrideValue": { "@id": "urn:fedipod:gateway:Handler" }
+        }
+      ]
+    }
+  ]
+}
