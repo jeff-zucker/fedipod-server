@@ -3,7 +3,7 @@
 // (handler.mjs, store-css.mjs) is verified against a running CSS instance, not
 // here — importing it needs @solid/community-server.
 //
-//   node --test   (from packages/css-gateway)
+//   node --test
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,0 +1,21 @@
+# Builds the Server and runs its tests on every push and pull request: the
+# unit tests, the live CSS store test, and both end-to-end runs, each against
+# fedipod as npm installs it. Test only — no publish, no secrets, no deploy.
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:e2e
+      - run: npm run test:e2e:suffix

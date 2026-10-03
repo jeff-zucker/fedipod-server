@@ -47,8 +47,6 @@ src/
 config/server.json     the snippet an operator imports: the handler in the waterfall before
                        LDP, the streaming handler, the initializer and finalizer lists, the
                        activity+json / ld+json relabelling
-scripts/link-fedipod.mjs   in a FediPod checkout, links the checkout into node_modules as
-                       `fedipod`; does nothing anywhere else. Every test script runs it first
 test/server.test.mjs   claims, the adapter, the directory: no CSS needed
 test/live-css.mjs      the handler over a real CSS store stack: opt-in, the transport, the lease
 test/e2e/live-agent.mjs    a real CSS with subdomained pods, used as a client would (77 checks)

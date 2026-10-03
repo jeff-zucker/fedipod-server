@@ -3,6 +3,13 @@
   "version": "0.31.0",
   "description": "The FediPod Server: a full ActivityPub server as a Community Solid Server component.",
   "license": "MIT",
+  "author": "Jeff Zucker",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeff-zucker/fedipod-server.git"
+  },
+  "homepage": "https://github.com/jeff-zucker/fedipod-server#readme",
+  "bugs": "https://github.com/jeff-zucker/fedipod-server/issues",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -44,11 +51,8 @@
   "scripts": {
     "build": "tsc && npm run build:components",
     "build:components": "componentsjs-generator -s src -c dist/components -r fps",
-    "pretest": "node scripts/link-fedipod.mjs",
     "test": "npm run build && node --test test/*.mjs",
-    "pretest:e2e": "node scripts/link-fedipod.mjs",
     "test:e2e": "node test/e2e/live-agent.mjs",
-    "pretest:e2e:suffix": "node scripts/link-fedipod.mjs",
     "test:e2e:suffix": "node test/e2e/live-suffix.mjs",
     "prepublishOnly": "npm test"
   }
