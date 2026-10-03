@@ -3,7 +3,7 @@
 // app would — sign in, post, watch the live feed — while the other proves that
 // identities on one server stay separate. No agent process exists anywhere.
 //
-//   npm run test:e2e     (from packages/fedipod-server)
+//   npm run test:e2e
 //
 // Deliberately outside the `node --test test/*.mjs` glob: it starts a server
 // and takes a while. Everything it asserts is read back over plain HTTP, the
@@ -396,8 +396,8 @@ try {
   const otherKeys = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const forgedRes = await fetch(await signedPost('frank', follow('frank', 4), otherKeys.privateKey));
   const forged = await forgedRes.json().catch(() => ({}));
-  check(forgedRes.status === 202 && forged.reason === 'forged signature',
-    `a delivery signed with the wrong key is dropped at the door (${forgedRes.status} ${forged.reason})`);
+  check(forgedRes.status === 202 && /^buffered-unverified/.test(forged.reason || ''),
+    `a delivery signed with the wrong key lands marked unverified, as an unsigned one does (${forgedRes.status} ${forged.reason})`);
 
   const plainRes = await fetch(podInbox, { method: 'POST',
     headers: { 'content-type': 'application/activity+json' }, body: follow('grace', 5) });
@@ -407,9 +407,19 @@ try {
   check(await until('the identity answers the unsigned follow after checking its sender',
     async () => delivered.some((d) => d.type === 'Accept' && d.deliveredTo === 'grace')),
   'and is still answered, on the strength of the sender\'s own actor document');
-  await new Promise((r) => setTimeout(r, 3000));
-  check(!delivered.some((d) => d.type === 'Accept' && d.deliveredTo === 'frank'),
-    'the forged follow was never answered');
+  check(await until('the identity answers the wrongly signed follow after checking its sender',
+    async () => delivered.some((d) => d.type === 'Accept' && d.deliveredTo === 'frank')),
+  'and it too is answered on the strength of the sender\'s own actor document');
+
+  // An app reads the notifications those follows made, and pages on by the
+  // links it is handed.
+  const notifRes = await fetch(`${POD}api/v1/notifications`, { headers: auth });
+  const notifs = notifRes.status === 200 ? await notifRes.json() : [];
+  const nextLink = /<([^>]+)>;\s*rel="next"/.exec(notifRes.headers.get('link') || '')?.[1] || '';
+  check(notifRes.status === 200 && notifs.some((n) => n.type === 'follow'),
+    `an app reads the follows among its notifications (${notifRes.status})`);
+  check(nextLink.startsWith(`${POD}api/v1/notifications?`) && (await fetch(nextLink, { headers: auth })).status === 200,
+    `and the next page it is handed opens (${nextLink || 'no link'})`);
 
   // ---- how a client learns to sign in --------------------------------------
   const metaRes = await fetch(`${POD}.well-known/oauth-authorization-server`);

@@ -5,7 +5,7 @@
 // separate. No agent process exists anywhere; every route answers under the
 // pod's own path.
 //
-//   npm run test:e2e:suffix     (from packages/fedipod-server)
+//   npm run test:e2e:suffix
 //
 // The whole point of difference from live-agent.mjs: there every identity had an
 // origin of its own (a subdomain), so its surface sat at the origin root. Here
@@ -341,8 +341,8 @@ try {
   const otherKeys = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const forgedRes = await fetch(await signedPost('frank', follow('frank', 4), otherKeys.privateKey));
   const forged = await forgedRes.json().catch(() => ({}));
-  check(forgedRes.status === 202 && forged.reason === 'forged signature',
-    `a delivery signed with the wrong key is dropped at the door (${forgedRes.status} ${forged.reason})`);
+  check(forgedRes.status === 202 && /^buffered-unverified/.test(forged.reason || ''),
+    `a delivery signed with the wrong key lands marked unverified, as an unsigned one does (${forgedRes.status} ${forged.reason})`);
 
   // ---- the client posts, the follower receives it -------------------------
   const posted = await fetch(`${POD}api/v1/statuses`, {
