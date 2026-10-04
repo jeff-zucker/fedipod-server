@@ -312,6 +312,8 @@ try {
     'while an unauthenticated client is turned away');
 
   // ---- the live feed -------------------------------------------------------
+  // Node 22 has a WebSocket of its own; Node 20, which CI runs, needs ws's.
+  const WebSocket = globalThis.WebSocket ?? (await import('ws')).default;
   const events = [];
   const socket = new WebSocket(`ws://${ALICE}/api/v1/streaming?access_token=${
     encodeURIComponent(bearer)}&stream=user`);
