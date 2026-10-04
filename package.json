@@ -22,7 +22,7 @@
     "@solid/community-server": "^7.0.0"
   },
   "dependencies": {
-    "fedipod": "^1.45.0"
+    "fedipod": "^1.48.0"
   },
   "devDependencies": {
     "@fedify/fedify": "^2.3.4",
