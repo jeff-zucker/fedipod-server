@@ -259,11 +259,7 @@ npm run test:e2e:suffix   # the same, for suffixed pods (mode d)
 container listings — through the transport an identity uses, and checks the
 lease protocol and the deletion deny-list still hold across it.
 
-`npm test` is also what a publish runs, so a red suite blocks one. In a
-FediPod checkout the tests run against the checkout's own `fedipod`:
-`scripts/link-fedipod.mjs` links it into `node_modules` before each test
-script, and does nothing anywhere else.
-<!-- CLAUDE 2026-10-03 — the second sentence above is no longer true: this package has no link script. FediPod's own test run points this package's `fedipod` at the FediPod checkout. Suggest deleting that sentence, and these markers -->
+`npm test` is also what a publish runs, so a red suite blocks one.
 
 `npm run test:e2e` starts a real Community Solid Server with three pods (two
 become identities up front; the third opts in and out at runtime), then signs in as a phone app does, posts,
