@@ -125,6 +125,18 @@ const remote = http.createServer((req, res) => {
 });
 await new Promise((r) => remote.listen(REMOTE_PORT, '127.0.0.1', r));
 
+// A key on a server of its own, naming one of the stand-in actors as its owner.
+// Anyone can publish such a document; it must not let them read as that actor.
+const FORGER_PORT = REMOTE_PORT + 1;
+const forgerKeys = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const FORGED_KEY = `http://127.0.0.1:${FORGER_PORT}/keys/1`;
+const forger = http.createServer((req, res) => {
+  res.writeHead(200, { 'content-type': 'application/activity+json' });
+  res.end(JSON.stringify({ '@context': 'https://w3id.org/security/v1', id: FORGED_KEY, type: 'CryptographicKey',
+    owner: `${REMOTE}u/erin`, publicKeyPem: forgerKeys.publicKey.export({ type: 'spki', format: 'pem' }) }));
+});
+await new Promise((r) => forger.listen(FORGER_PORT, '127.0.0.1', r));
+
 const until = async (label, predicate, timeoutMs = 45_000) => {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
@@ -395,6 +407,25 @@ try {
     async () => delivered.some((d) => d.type === 'Accept' && d.deliveredTo === 'erin')),
   'and the identity acts on it');
 
+  // ---- a followers-only post, read at its address by a follower's server ----
+  const priv = await fetch(`${POD}api/v1/statuses`, {
+    method: 'POST', headers: { ...auth, 'content-type': 'application/json' },
+    body: JSON.stringify({ status: 'for followers only', visibility: 'private' }),
+  });
+  const privUri = priv.status === 200 ? (await priv.json()).uri : null;
+  check(Boolean(privUri) && privUri.includes('/ap/private/'), `a followers-only post lives in the private folder (${privUri})`);
+  const signedGet = async (keyId, privateKey) => fetch(await signRequest(
+    new Request(privUri, { method: 'GET', headers: { accept: 'application/activity+json' } }),
+    await signingKeyOf(privateKey), new URL(keyId)));
+  if (privUri) {
+    const asErin = await signedGet(`${REMOTE}u/erin#main-key`, remoteKeys.privateKey);
+    check(asErin.status === 200 && (await asErin.json().catch(() => ({}))).id === privUri,
+      `a follower's server, signing its read with the key its own server publishes, gets the post (${asErin.status})`);
+    const asForger = await signedGet(FORGED_KEY, forgerKeys.privateKey);
+    check(asForger.status === 404,
+      `a key published elsewhere that names the follower as its owner is told nothing (${asForger.status})`);
+  }
+
   const otherKeys = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const forgedRes = await fetch(await signedPost('frank', follow('frank', 4), otherKeys.privateKey));
   const forged = await forgedRes.json().catch(() => ({}));
@@ -553,6 +584,7 @@ try {
 } finally {
   await app.stop();
   remote.close();
+  forger.close();
 }
 
 // Everything the identities are made of travels with their pods.
