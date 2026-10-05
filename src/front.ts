@@ -5,6 +5,7 @@
 import type { HttpHandlerInput } from '@solid/community-server';
 import { nodeToWhatwg, applyToNode } from './adapt';
 import { FRONT_CORE, FRONT_PAGES, esmImport } from './fedipod';
+import { holdsHere } from './store-css';
 import type { FrontPages } from './fedipod';
 import type { FediPodServerHandler } from './handler';
 
@@ -81,6 +82,7 @@ export async function serveFront(h: FediPodServerHandler,
         optIn: (a: { podBase: string; webId: string; container?: string; createIndex?: boolean }) => h.optInPod(a),
         optOut: (a: { podBase: string }) => h.optOutPod(a),
         describe: (a: { podBase: string }) => h.describePod(a),
+        serves: (url: string) => holdsHere(s.args.resourceStore, url),
       }
       : undefined,
   });

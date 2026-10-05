@@ -11,6 +11,20 @@ import { BasicRepresentation, readableToString, NotFoundHttpError } from '@solid
 import type { ResourceStore } from '@solid/community-server';
 import type { IO } from './directory';
 
+/**
+ * Whether this server holds the container or document at this address: a pod
+ * here, or a WebID in one. Asked of the store, never over the network.
+ */
+export async function holdsHere(resourceStore: ResourceStore, url: string): Promise<boolean> {
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    return await resourceStore.hasResource({ path: u.href });
+  } catch {
+    return false;
+  }
+}
+
 export function makeStoreIO(resourceStore: ResourceStore): IO {
   return {
     async read(url: string): Promise<string | null> {

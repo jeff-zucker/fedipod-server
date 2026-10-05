@@ -92,7 +92,9 @@ const remoteKeys = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const remotePublicPem = remoteKeys.publicKey.export({ type: 'spki', format: 'pem' });
 const signingKeyOf = (privateKey) => webcrypto.subtle.importKey('pkcs8',
   privateKey.export({ type: 'pkcs8', format: 'der' }), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, true, ['sign']);   // Fedify's signer insists on extractable
+const asked = [];   // every request the stand-in server is sent
 const remote = http.createServer((req, res) => {
+  asked.push(`${req.method} ${req.url}`);
   const isActor = /^\/u\/([a-z]+)$/u.exec(req.url || '');
   if (isActor) {
     const name = isActor[1];
@@ -421,6 +423,20 @@ try {
   check(await until('the identity answers the verified follow',
     async () => delivered.some((d) => d.type === 'Accept' && d.deliveredTo === 'erin')),
   'and the identity acts on it');
+
+  // ---- a stranger cannot make the server fetch an address they name ----------
+  const askedBefore = asked.length;
+  const foreignPod = await optIn(await sessionFor('alice@example.com', POD), REMOTE);
+  check(foreignPod.status === 403, `a pod on another server cannot be signed up here (${foreignPod.status})`);
+  const jwt = (claims) => ['{"alg":"ES256","typ":"at+jwt"}', JSON.stringify(claims), 'sig']
+    .map((x, i) => (i < 2 ? Buffer.from(x).toString('base64url') : x)).join('.');
+  const strangerToken = await fetch(`${POD}ap/outbox`, { method: 'POST',
+    headers: { 'content-type': 'application/activity+json', authorization: `DPoP ${jwt({ webid: `${REMOTE}u/zed`, iss: `${REMOTE}idp` })}`, dpop: 'x' },
+    body: JSON.stringify({ type: 'Note', content: 'not yours' }) });
+  check(strangerToken.status === 403, `a token naming someone else is refused at the outbox (${strangerToken.status})`);
+  const strangers = asked.slice(askedBefore).filter((r) => / \/(?:$|u\/zed|idp)/u.test(r));
+  check(strangers.length === 0,
+    `and the server asked the stranger's server nothing for either (${strangers.join(', ') || 'nothing'})`);
 
   // ---- a followers-only post, read at its address by a follower's server ----
   const priv = await fetch(`${POD}api/v1/statuses`, {
