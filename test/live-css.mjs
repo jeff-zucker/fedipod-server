@@ -242,6 +242,16 @@ check(await first.acquire() === true, 'an agent acquires the lease through the s
 const second = new Lease({ url: leaseUrl, fetchImpl: (u, i) => remote.fetch(u, i), log: () => {} });
 check(await second.acquire() === false, 'a second agent on the same pod is refused it');
 check(await first.renewOnce() === true, 'the holder renews — the conditional PUT protocol works unchanged');
+// Each write hands back the document's new version, so a renewal is one
+// conditional write and never a read first.
+const leaseCalls = [];
+const counted = new Lease({ url: podBase + 'fedipod/ap-state/lease-count.json', log: () => {},
+  fetchImpl: (u, i) => { leaseCalls.push(String(i?.method || 'GET').toUpperCase()); return remote.fetch(u, i); } });
+check(await counted.acquire() === true, 'a lease taken to count what renewing costs');
+leaseCalls.length = 0;
+check(await counted.renewOnce() === true && await counted.renewOnce() === true, 'it renews twice');
+check(leaseCalls.length === 2 && leaseCalls.every((m) => m === 'PUT'), `each renewal is one write and no read (${leaseCalls.join(', ')})`);
+await counted.release();
 await first.release();
 check(await second.acquire() === true, 'and once released the other agent may act');
 

@@ -89,6 +89,7 @@ export interface Internals {
   surfaces: Map<string, EmbeddedIdentity>;
   doorSecrets: Map<string, string>;
   waiting: Map<string, number>;
+  wakers: Map<string, (identifier: { path?: string }, activity: unknown) => void>;
   onStoreChange: ((identifier: { path?: string }, activity: unknown) => void) | null;
   starting: Set<string>;
   startCancelled: Set<string>;
@@ -118,6 +119,7 @@ export class FediPodServerHandler extends HttpHandler implements Initializable, 
   private readonly registry: AgentRegistry | null;
   private readonly doorSecrets = new Map<string, string>();    // pod base → its door secret
   private readonly waiting = new Map<string, number>();        // a running identity's inbox → items in it
+  private readonly wakers = new Map<string, (identifier: { path?: string }, activity: unknown) => void>();   // inbox → its drain's wake-up
   private onStoreChange: ((identifier: { path?: string }, activity: unknown) => void) | null = null;
   private readonly starting = new Set<string>();
   private readonly startCancelled = new Set<string>();

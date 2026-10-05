@@ -42,19 +42,22 @@ export async function countWaiting(store: ResourceStore, inboxUrl: string): Prom
   }
 }
 
-/** A write anywhere on the server, counted when it adds to or takes from a running identity's inbox. */
-export function countChange(h: FediPodServerHandler, identifier: { path?: string } | undefined, activity: unknown): void {
+/**
+ * A write anywhere on the server: counted when it adds to or takes from a
+ * running identity's inbox, and handed to that identity's drain to wake it.
+ * One listener for every identity, and the inbox found from the path itself,
+ * so a write costs the same however many identities the server runs.
+ */
+export function storeChanged(h: FediPodServerHandler, identifier: { path?: string } | undefined, activity: unknown): void {
+  const p = identifier?.path ?? '';
+  if (!p || p.endsWith('/')) return;
+  const inbox = p.slice(0, p.lastIndexOf('/') + 1);
+  const s = h.internals();
+  s.wakers.get(inbox)?.(identifier as { path?: string }, activity);
+  if (!s.waiting.has(inbox) || p.endsWith(RECEIPT)) return;
   const kind = String((activity as { value?: string } | undefined)?.value ?? activity ?? '');
   const step = kind.endsWith('Create') ? 1 : kind.endsWith('Delete') ? -1 : 0;
-  const p = identifier?.path ?? '';
-  if (!step || p.endsWith('/') || p.endsWith(RECEIPT)) return;
-  const s = h.internals();
-  for (const inbox of s.waiting.keys()) {
-    if (p.startsWith(inbox) && !p.slice(inbox.length).includes('/')) {
-      s.waiting.set(inbox, Math.max(0, (s.waiting.get(inbox) ?? 0) + step));
-      return;
-    }
-  }
+  if (step) s.waiting.set(inbox, Math.max(0, (s.waiting.get(inbox) ?? 0) + step));
 }
 
 /** Whether this request writes an item straight into the inbox through the pod, beside the door rather than through it. */

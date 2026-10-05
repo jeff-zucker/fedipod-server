@@ -137,11 +137,11 @@ export function makeStoreFetch(resourceStore: ResourceStore, podBase?: string): 
         if (PreconditionFailedHttpError.isInstance?.(e)) return respond(412, 'Precondition Failed');
         throw e;
       }
-      // The lease renews with a conditional PUT, so hand back the new ETag when
-      // the store reported one; without it the lease re-reads first, which is
-      // slower but just as correct.
+      // The lease renews with a conditional PUT, so hand back the new ETag:
+      // the store stamps the modified time on the representation it was given,
+      // which is the one ETags are made from. Without it the lease re-reads first.
       const written = changes?.get?.(identifier);
-      return respond(205, null, written && etags.getETag(written));
+      return respond(205, null, (written && etags.getETag(written)) || etags.getETag(rep.metadata));
     }
 
     // An N3 Patch of an RDF document — a profile, a type index — read by the

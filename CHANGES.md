@@ -1,5 +1,14 @@
 # Changes
 
+## 2026-10-05, after 0.32.0
+
+**The server does less work as accounts are added.** Every write is checked
+once for all accounts, not once per account (Node's warning past ten accounts
+is gone). An address lookup no longer reads the front's page files from disk.
+On a server running several workers, an account's inbox is still swept every
+ten minutes; with one worker, new mail wakes it at once and the sweep is an
+hourly backstop.
+
 ## 2026-10-05 — version 0.32.0, on fedipod 1.49.0
 
 **A stranger can no longer fill an account's inbox.** Mail that cannot be

@@ -13,10 +13,12 @@ export async function serveFront(h: FediPodServerHandler,
   request: HttpHandlerInput['request'], response: HttpHandlerInput['response']): Promise<void> {
   const s = h.internals();
   const { routeFront } = await esmImport(FRONT_CORE);
-  // Read on each request, so an edited page shows without a restart. A
-  // missing file is not fatal: the route it feeds answers 404.
+  // Read when a route asks for a page, so an edited page shows without a
+  // restart and an address lookup, the busiest thing answered here, reads no
+  // file at all. A missing file is not fatal: the route it feeds answers 404.
   const { frontPages } = await esmImport(FRONT_PAGES) as unknown as { frontPages: () => FrontPages };
-  const pages = frontPages();
+  let read: FrontPages | null = null;
+  const pages = (): FrontPages => (read ||= frontPages());
   let whatwg: Request;
   try {
     whatwg = await nodeToWhatwg(request as never, s.args.frontOrigin);
@@ -36,19 +38,19 @@ export async function serveFront(h: FediPodServerHandler,
       h.webIdsFromSession(req),
     gatewayWebId: s.args.gatewayWebId,
     offersPods: !!s.args.offersPods,
-    signupPage: s.args.signupPage || pages.signupPage,
-    runPage: s.args.runPage || pages.runPage,
+    get signupPage() { return s.args.signupPage || pages().signupPage; },
+    get runPage() { return s.args.runPage || pages().runPage; },
     runPath: s.runPath,
-    adminPage: s.args.adminPage || pages.adminPage,
+    get adminPage() { return s.args.adminPage || pages().adminPage; },
     // The notices page renders here too, and says the server keeps none:
     // a notices store is the Netlify front's, not this component's.
-    noticesPage: pages.noticesPage,
+    get noticesPage() { return pages().noticesPage; },
     // The opt-in and roster pages load the sign-in library; without it the
     // pages render but cannot be used.
-    authBundle: pages.authBundle,
+    get authBundle() { return pages().authBundle; },
     // Each page's own script, so the pages can be served under
     // `script-src 'self'` (see fedipod/front).
-    pageScripts: pages.pageScripts,
+    get pageScripts() { return pages().pageScripts; },
     lookup: (handle: string) => h.dir.lookup(handle),
     putDirectory: (handle: string, rec: never) => h.dir.putDirectory(handle, rec),
     podPut: (_handle: string, url: string, body: string, ct: string) => s.podPut(url, body, ct),

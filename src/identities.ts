@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { makeStoreSession } from './store-pod';
 import { frontRow } from './directory';
 import { EMBED, esmImport } from './fedipod';
-import { countChange, countWaiting } from './door';
+import { storeChanged, countWaiting } from './door';
 import { deriveHandle, validateAgentPod } from './mounts';
 import type { AgentClaim } from './mounts';
 import type { FediPodServerHandler } from './handler';
@@ -60,7 +60,7 @@ export async function initialize(h: FediPodServerHandler): Promise<void> {
   // One listener for every identity's inbox count, rather than one each.
   const events = s.args.resourceStore as unknown as { on?: (e: string, f: (...a: never[]) => void) => void };
   if (runs && !s.onStoreChange && typeof events.on === 'function') {
-    s.onStoreChange = (identifier, activity): void => countChange(h, identifier, activity);
+    s.onStoreChange = (identifier, activity): void => storeChanged(h, identifier, activity);
     events.on('changed', s.onStoreChange);
   }
   if (runs && !s.onSignal) {
@@ -133,6 +133,7 @@ export async function finalize(h: FediPodServerHandler): Promise<void> {
     s.onStoreChange = null;
   }
   s.waiting.clear();
+  s.wakers.clear();
   const running = [ ...s.identities.values() ];
   s.identities.clear();
   s.surfaces.clear();
@@ -191,7 +192,14 @@ export async function startIdentity(h: FediPodServerHandler, podBase: string): P
           session,
           resourceStore: s.args.resourceStore,
           webIdSuffix: s.args.agentWebIdSuffix ?? 'profile/card#me',
-          pollSeconds: s.args.agentPollSeconds ?? null,
+          // With several workers the writes happen in other processes, whose
+          // events never reach this one: the sweep is how mail is found.
+          pollSeconds: s.args.agentPollSeconds
+            ?? (s.args.clusterManager && !s.args.clusterManager.isSingleThreaded() ? 600 : null),
+          watch: (inbox: string, wake: (identifier: { path?: string }, activity: unknown) => void): () => void => {
+            s.wakers.set(inbox, wake);
+            return (): void => { s.wakers.delete(inbox); };
+          },
           autoAcceptFollows: s.args.agentAutoAcceptFollows !== false,
           gateToken: (): string | undefined => s.doorSecrets.get(podBase),
           uiPath: s.uiPath,
