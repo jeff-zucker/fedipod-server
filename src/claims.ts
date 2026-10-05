@@ -9,9 +9,11 @@
 // have a pod, they are logged in, and they opt it in at /run. So none of '/',
 // '/signup' or '/new-account' is claimed on a pod server. A gateway is the
 // other case: it has no pod server behind it, arranging the pod IS its job,
-// and its own front keeps those pages.
+// and its own front keeps those pages. '/api/attach' is not claimed either:
+// it gives a pod held anywhere an address at this server's name, and here a
+// name belongs to the pod called that, which an outsider could take first.
 const FRONT_PATHS = new Set(['/roster',
-  '/.well-known/webfinger', '/api/handle', '/api/attach', '/api/agent',
+  '/.well-known/webfinger', '/api/handle', '/api/agent',
   '/api/roster', '/api/revoke',
   // What the pages that remain load: the sign-in library the opt-in and
   // roster pages use.

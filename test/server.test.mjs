@@ -38,11 +38,15 @@ test('claims every route the front core serves, pages and the files they load', 
   // Each page is useless without what it loads, so the assets are claims too:
   // an unclaimed one falls through to the pod and 404s.
   for (const pathname of ['/.fediverse-account', '/roster',
-    '/.well-known/webfinger', '/api/handle', '/api/attach', '/api/agent',
+    '/.well-known/webfinger', '/api/handle', '/api/agent',
     '/api/roster', '/api/revoke',
     '/solid-oidc-client.js', '/new-account.js', '/run.js', '/admin.js']) {
     assert.equal(claims({ host: 'fedipod.net', pathname }, F), true, pathname);
   }
+});
+
+test('takes no address for a pod held elsewhere: a name here belongs to the pod of that name', () => {
+  assert.equal(claims({ host: 'fedipod.net', pathname: '/api/attach' }, 'fedipod.net'), false);
 });
 
 // The path here is already relative to the identity's mount: the handler
