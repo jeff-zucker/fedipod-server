@@ -1,6 +1,6 @@
 # Changes
 
-## 2026-10-05, after 0.32.0
+## 2026-10-05 — version 0.32.1, on fedipod 1.49.1
 
 **The server does less work as accounts are added.** Every write is checked
 once for all accounts, not once per account (Node's warning past ten accounts
