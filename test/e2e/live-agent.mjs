@@ -181,7 +181,8 @@ const optIn = (session, podBase) => session.fetch(`${BASE}api/agent`, {
 try {
   const aliceIn = await optIn(await sessionFor('alice@example.com', POD), POD);
   check(aliceIn.status === 201, "alice's opt-in is accepted — sign-up is how an account is made");
-  secrets.set('alice', (await aliceIn.clone().json()).doorSecret);
+  const aliceReply = await aliceIn.clone().json().catch(() => ({}));
+  secrets.set('alice', aliceReply.doorSecret);
   const carolIn = await optIn(await sessionFor('carol@example.com', POD2), POD2);
   check(carolIn.status === 201, "carol's too, on her own origin");
   secrets.set('carol', (await carolIn.clone().json()).doorSecret);
@@ -190,7 +191,7 @@ try {
   // The management link the reply hands over is what the owner clicks, and
   // the server logs every address it is asked for: it carries a two-minute
   // key, never the secret.
-  const aliceManage = (await aliceIn.clone().json()).manage || '';
+  const aliceManage = aliceReply.manage || '';
   check(/\?dk-bless=/.test(aliceManage) && !aliceManage.includes(encodeURIComponent(doorSecret('alice')))
     && !aliceManage.includes(doorSecret('alice')),
   `the management link carries a short-lived key, not the door secret (${aliceManage.replace(/=.*/, '=…')})`);
