@@ -12,8 +12,8 @@ made, and opting out is the only way one ends.
 Every delivery to an account is checked as it arrives. The server that stores
 the inbox is the server the other side's POST reaches, so the request's
 signature is verified there and the result is written beside the activity. A
-delivery signed with the wrong key is dropped. One with no signature is kept
-and the account confirms the sender through the sender's own actor document
+delivery whose signature does not check out, or that has none, is kept, and
+the account confirms the sender through the sender's own actor document
 before acting on it. There is nothing to configure.
 
 With nothing configured beyond the defaults, installing the component changes
