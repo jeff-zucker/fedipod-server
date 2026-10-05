@@ -290,6 +290,12 @@ try {
   });
   check(crossDoor.status === 401 || crossDoor.status === 403,
     "and tamara's secret does not open aisha's door on the shared origin");
+  // The host is shared, so it is not aisha's: a sign-in that would return to
+  // a page in tamara's pod is not one of aisha's own addresses.
+  const crossReturn = await fetch(`${POD}oauth/authorize?${new URLSearchParams({
+    client_id: 'built-in', redirect_uri: `${POD2}catch.html`, response_type: 'code' })}`, { redirect: 'manual' });
+  check(crossReturn.status === 400,
+    `a sign-in that returns to another pod's page on the shared host is refused (${crossReturn.status})`);
 
   const authorize = await fetch(`${POD}oauth/authorize`, {
     method: 'POST',
