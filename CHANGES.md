@@ -1,6 +1,6 @@
 # Changes
 
-## 2026-10-05
+## 2026-10-05 — version 0.32.0, on fedipod 1.49.0
 
 **A stranger can no longer fill an account's inbox.** Mail that cannot be
 checked is still taken, but once 1,000 messages are waiting its sender is told
