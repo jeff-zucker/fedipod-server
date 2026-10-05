@@ -34,7 +34,8 @@ src/
                        made), fronting it at the apex, its door secret, stopping them all
   opt-in.ts            what an owner asks: opt in, opt out, describe my pod; reading the
                        server's own account session
-  door.ts              a delivery to an identity's inbox, verified where it lands
+  door.ts              a delivery to an identity's inbox, verified where it lands; how much mail
+                       may wait (1,000 unchecked, 5,000 in all), counted from the store's events
   front.ts             the Gateway's front (routeFront) with this server's pages, directory,
                        store reads and opt-in controls
   fedipod.ts           the fedipod modules loaded by name, and the dynamic import that loads them
@@ -49,7 +50,7 @@ config/server.json     the snippet an operator imports: the handler in the water
                        activity+json / ld+json relabelling
 test/server.test.mjs   claims, the adapter, the directory: no CSS needed
 test/live-css.mjs      the handler over a real CSS store stack: opt-in, the transport, the lease
-test/e2e/live-agent.mjs    a real CSS with subdomained pods, used as a client would (77 checks)
+test/e2e/live-agent.mjs    a real CSS with subdomained pods, used as a client would (86 checks)
 test/e2e/live-suffix.mjs   the same with suffixed pods (31 checks)
 tmp/                   the local Server's data (gitignored)
 ```
@@ -59,7 +60,7 @@ tmp/                   the local Server's data (gitignored)
 ```
 npm run build        tsc → dist, then componentsjs-generator → dist/components
 npm test             build, unit tests, live-css
-npm run test:e2e     about 20 seconds; test:e2e:suffix likewise
+npm run test:e2e     about two minutes (it waits out an inbox flood); test:e2e:suffix about 20 seconds
 npm publish --ignore-scripts   after the suites; fedipod must be on npm at the version
                      package.json names first
 ```

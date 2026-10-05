@@ -7,6 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { makeStoreSession } from './store-pod';
 import { frontRow } from './directory';
 import { EMBED, esmImport } from './fedipod';
+import { countChange, countWaiting } from './door';
 import { deriveHandle, validateAgentPod } from './mounts';
 import type { AgentClaim } from './mounts';
 import type { FediPodServerHandler } from './handler';
@@ -18,6 +19,7 @@ export interface EmbeddedIdentity {
   /** Where the identity's own tree begins on its pod, and the actor inside it. */
   podHome: string;
   actorUrl: string;
+  inboxUrl: string;
   surface: { handler: (req: unknown, res: unknown) => Promise<void>; streaming?: unknown };
   stop: () => Promise<void>;
   agent?: {
@@ -55,6 +57,12 @@ export async function initialize(h: FediPodServerHandler): Promise<void> {
   // stop, docker stop, Ctrl+C) killed the process with agent state
   // unflushed and the lease held for its whole TTL. Flush first, bounded,
   // then re-raise so the process still dies the way it was asked to.
+  // One listener for every identity's inbox count, rather than one each.
+  const events = s.args.resourceStore as unknown as { on?: (e: string, f: (...a: never[]) => void) => void };
+  if (runs && !s.onStoreChange && typeof events.on === 'function') {
+    s.onStoreChange = (identifier, activity): void => countChange(h, identifier, activity);
+    events.on('changed', s.onStoreChange);
+  }
   if (runs && !s.onSignal) {
     s.onSignal = (signal: NodeJS.Signals): void => {
       const timeout = new Promise((resolve) => { setTimeout(resolve, 5_000).unref?.(); });
@@ -120,6 +128,11 @@ export async function finalize(h: FediPodServerHandler): Promise<void> {
     process.removeListener('SIGINT', s.onSignal);
     s.onSignal = null;
   }
+  if (s.onStoreChange) {
+    (s.args.resourceStore as unknown as { off?: (e: string, f: unknown) => void }).off?.('changed', s.onStoreChange);
+    s.onStoreChange = null;
+  }
+  s.waiting.clear();
   const running = [ ...s.identities.values() ];
   s.identities.clear();
   s.surfaces.clear();
@@ -193,6 +206,8 @@ export async function startIdentity(h: FediPodServerHandler, podBase: string): P
         }
         s.identities.set(podBase, identity);
         s.surfaces.set(podBase, identity);
+        s.waiting.set(identity.inboxUrl, 0);
+        s.waiting.set(identity.inboxUrl, await countWaiting(s.args.resourceStore, identity.inboxUrl));
         s.logger.info(`FediPod agent @${identity.handle} running on ${podBase}`);
         // A suffix pod cannot answer WebFinger for itself — its host root is
         // the front's — so it is followable ONLY through the door's apex

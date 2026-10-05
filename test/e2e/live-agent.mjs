@@ -581,6 +581,28 @@ try {
     body: JSON.stringify({ action: 'opt-in', podBase: POD2 }),
   });
   check(carolRefused.status === 403, "dana's token cannot opt in carol's pod");
+
+  // ---- a stranger flooding an inbox is told to wait; signed mail still lands ----
+  // Written straight into the inbox through the pod, the way anyone may add to
+  // it, until a thousand are waiting.
+  const junk = Array.from({ length: 1100 }, (_, i) => i);
+  for (let i = 0; i < junk.length; i += 50) {
+    await Promise.all(junk.slice(i, i + 50).map((n) => fetch(`${podInbox}flood-${n}.json`, {
+      method: 'PUT', headers: { 'content-type': 'application/activity+json' }, body: 'not an activity' })));
+  }
+  const unsignedFull = await fetch(podInbox, { method: 'POST',
+    headers: { 'content-type': 'application/activity+json' }, body: follow('heidi', 90) });
+  check(unsignedFull.status === 503 && unsignedFull.headers.get('retry-after') === '600',
+    `with a thousand waiting, an unsigned delivery is told to try again in ten minutes (${unsignedFull.status})`);
+  const besideFull = await fetch(`${podInbox}flood-more.json`, { method: 'PUT',
+    headers: { 'content-type': 'application/activity+json' }, body: 'not an activity' });
+  check(besideFull.status === 503, `and so is one written straight into the inbox (${besideFull.status})`);
+  const signedFull = await fetch(await signedPost('ivan', follow('ivan', 91), remoteKeys.privateKey));
+  check(signedFull.status === 202, `while a signed delivery still lands (${signedFull.status})`);
+  check(await until('as the identity works through them, unsigned mail is taken again',
+    async () => (await fetch(podInbox, { method: 'POST', headers: { 'content-type': 'application/activity+json' },
+      body: follow('judy', 92) })).status === 202, 180_000),
+  'as the identity works through them, unsigned mail is taken again');
 } finally {
   await app.stop();
   remote.close();

@@ -22,7 +22,7 @@ import type { AgentClaim } from './mounts';
 import * as identities from './identities';
 import type { EmbeddedIdentity } from './identities';
 import * as optIn from './opt-in';
-import { deliverAtDoor } from './door';
+import { besideDoor, deliverAtDoor, fullInboxWrite, refuseFull } from './door';
 import { readPrivateAtDoor } from './private-read';
 import { serveFront } from './front';
 
@@ -88,6 +88,8 @@ export interface Internals {
   identities: Map<string, EmbeddedIdentity>;
   surfaces: Map<string, EmbeddedIdentity>;
   doorSecrets: Map<string, string>;
+  waiting: Map<string, number>;
+  onStoreChange: ((identifier: { path?: string }, activity: unknown) => void) | null;
   starting: Set<string>;
   startCancelled: Set<string>;
   stopping: boolean;
@@ -115,6 +117,8 @@ export class FediPodServerHandler extends HttpHandler implements Initializable, 
   private readonly surfaces = new Map<string, EmbeddedIdentity>();   // pod base → running identity
   private readonly registry: AgentRegistry | null;
   private readonly doorSecrets = new Map<string, string>();    // pod base → its door secret
+  private readonly waiting = new Map<string, number>();        // a running identity's inbox → items in it
+  private onStoreChange: ((identifier: { path?: string }, activity: unknown) => void) | null = null;
   private readonly starting = new Set<string>();
   private readonly startCancelled = new Set<string>();
   private stopping = false;
@@ -173,6 +177,9 @@ export class FediPodServerHandler extends HttpHandler implements Initializable, 
     const c = resolveClaim(this, host, pathname);
     if (c && agentClaims({ pathname: stripMount(pathname, c.mount), method: request.method,
       signed: !!request.headers.signature }, this.uiPath)) return;
+    // A write straight into a full inbox, beside the door: answered here
+    // rather than by the pod, which would take it.
+    if (c && fullInboxWrite(this, c.podBase, pathname, request.method)) return;
     throw new Error('not a gateway route');   // reject → CSS's LDP handler takes it
   }
 
@@ -235,6 +242,8 @@ export class FediPodServerHandler extends HttpHandler implements Initializable, 
     // This identity's own inbox path — <mount>/<root>/ap/inbox/, from its
     // actor, so it already carries the mount for a suffix pod.
     const inboxPath = new URL(identity.actorUrl).pathname.replace(/ap\/actor$/u, 'ap/inbox/');
+    // Claimed only because the inbox was full (canHandle), so answered as full.
+    if (besideDoor(identity, pathname, request.method)) return refuseFull(this, identity, response);
     if (pathname === inboxPath && String(request.method).toUpperCase() === 'POST') {
       return deliverAtDoor(this, identity, request, response);
     }

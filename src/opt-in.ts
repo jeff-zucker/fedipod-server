@@ -159,6 +159,7 @@ Promise<Record<string, unknown> & { httpStatus: number }> {
   s.surfaces.delete(base);
   s.agentHandles.delete(row.handle);
   s.doorSecrets.delete(base);
+  if (identity) s.waiting.delete(identity.inboxUrl);
   if (identity) await identity.stop();
   await s.registry.remove(key);
   s.logger.info(`runtime opt-out: @${row.handle} on ${base} — the pod serves plain LDP again`);
