@@ -288,8 +288,14 @@ try {
   const noPassword = await fetch(`${POD}oauth/authorize?client_id=${appReg.client_id
   }&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=read+write`);
   const noPasswordPage = await noPassword.text();
-  check(noPassword.status === 200 && /Sign in with your pod/.test(noPasswordPage) && /oauth\/session\/signin\.mjs/.test(noPasswordPage),
+  check(noPassword.status === 200 && /oauth\/session\/signin\.mjs/.test(noPasswordPage),
     'without a password, sign-in goes through the owner\'s pod');
+  check(noPasswordPage.includes(`<title>Allow e2e to access your @alice@${ALICE} account?</title>`)
+    && noPasswordPage.includes(`<h1>Allow e2e to access your @alice@${ALICE} account?</h1>`)
+    && !/<p>Allow/.test(noPasswordPage)
+    && noPasswordPage.includes(`<a id="webid" href="${POD}profile/card#me" hidden></a>`)
+    && />Allow<\/button>/.test(noPasswordPage) && />Cancel<\/button>/.test(noPasswordPage),
+  'the page asks one question: may this app act as your Fediverse address');
 
   // The operator sets one through their own door, which the secret guards.
   const noGate = await fetch(`${POD}fp/config`, {
