@@ -297,6 +297,13 @@ try {
   check(crossReturn.status === 400,
     `a sign-in that returns to another pod's page on the shared host is refused (${crossReturn.status})`);
 
+  // The password form a phone app shows posts back under the pod's own path;
+  // posting to the host's root would reach no account at all.
+  const form = await (await fetch(`${POD}oauth/authorize?${new URLSearchParams({
+    client_id: appReg.client_id, redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', response_type: 'code' })}`)).text();
+  check(form.includes(`action="${new URL(POD).pathname}oauth/authorize"`),
+    "the password form posts back under the pod's own path");
+
   const authorize = await fetch(`${POD}oauth/authorize`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
