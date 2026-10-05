@@ -8,6 +8,7 @@ export const FRONT_PAGES = 'fedipod/front-pages';
 export const EMBED = 'fedipod/embed';
 export const PLACE = 'fedipod/place';
 export const TRANSPORT = 'fedipod/pod/transport.mjs';
+export const GATE = 'fedipod/vendor/gate.cjs';
 export const esmImport = new Function('s', 'return import(s)') as (s: string) => Promise<Record<string, Function>>;
 
 /** The front's pages and the files they load, as fedipod/front-pages reads them. */

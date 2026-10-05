@@ -185,6 +185,21 @@ try {
   secrets.set('carol', (await carolIn.clone().json()).doorSecret);
   check(Boolean(doorSecret('alice')) && doorSecret('alice') !== doorSecret('carol'),
     'each opt-in reply carries a door secret of its own');
+  // The management link the reply hands over is what the owner clicks, and
+  // the server logs every address it is asked for: it carries a two-minute
+  // key, never the secret.
+  const aliceManage = (await aliceIn.clone().json()).manage || '';
+  check(/\?dk-bless=/.test(aliceManage) && !aliceManage.includes(encodeURIComponent(doorSecret('alice')))
+    && !aliceManage.includes(doorSecret('alice')),
+  `the management link carries a short-lived key, not the door secret (${aliceManage.replace(/=.*/, '=…')})`);
+  let blessed = null;
+  await until('the management link opens once the account is running', async () => {
+    blessed = await fetch(aliceManage, { redirect: 'manual' });
+    return blessed.status === 302;
+  });
+  check(blessed?.status === 302 && /dk-token=/.test(blessed.headers.get('set-cookie') || '')
+    && !/dk-bless/.test(blessed.headers.get('location') || ''),
+  `opening it lets the browser in and takes the key out of the address (${blessed?.status})`);
 
   // ---- the identity provisions itself -------------------------------------
   const actorUrl = `${POD}fedipod/ap/actor`;

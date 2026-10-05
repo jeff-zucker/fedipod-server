@@ -4,7 +4,7 @@
 
 import { makeStoreSession } from './store-pod';
 import { agentKey } from './directory';
-import { PLACE, TRANSPORT, esmImport } from './fedipod';
+import { GATE, PLACE, TRANSPORT, esmImport } from './fedipod';
 import { deriveHandle, validateAgentPod } from './mounts';
 import type { AgentClaim } from './mounts';
 import { doorSecretFor, startIdentity } from './identities';
@@ -40,6 +40,16 @@ export async function webIdsFromSession(h: FediPodServerHandler,
 }
 
 /**
+ * The owner's management link. It carries a key good for two minutes, made
+ * from the door secret, never the secret itself: the server logs every
+ * address it is asked for, and a log is kept and passed around.
+ */
+async function manageLink(h: FediPodServerHandler, base: string, secret: string): Promise<string> {
+  const { blessNonce } = await esmImport(GATE) as unknown as { blessNonce: (token: string) => string };
+  return `${base.replace(/\/$/u, '')}${h.internals().uiPath}?dk-bless=${encodeURIComponent(blessNonce(secret))}`;
+}
+
+/**
  * A pod owner, already proven to control podBase, asks this server to run
  * their identity. Returns { httpStatus, ...body }; the secret appears in the
  * reply and nowhere else. Re-opting-in rotates the secret — that is how a
@@ -61,7 +71,7 @@ Promise<Record<string, unknown> & { httpStatus: number }> {
     const door = await doorSecretFor(h, base, undefined, { rotate: true });
     s.doorSecrets.set(base, door.secret);
     return { httpStatus: 201, ok: true, handle, host: new URL(base).host.toLowerCase(),
-      doorSecret: door.secret, doorPath: s.uiPath, status: 'rotated' };
+      doorSecret: door.secret, doorPath: s.uiPath, manage: await manageLink(h, base, door.secret), status: 'rotated' };
   }
 
   let claim: AgentClaim;
@@ -113,7 +123,7 @@ Promise<Record<string, unknown> & { httpStatus: number }> {
   void startIdentity(h, base);
   s.logger.info(`runtime opt-in: @${handle} on ${base} (door secret in its pod at ${door.url})`);
   return { httpStatus: 201, ok: true, handle, host,
-    doorSecret: door.secret, doorPath: s.uiPath, status: 'starting' };
+    doorSecret: door.secret, doorPath: s.uiPath, manage: await manageLink(h, base, door.secret), status: 'starting' };
 }
 
 /**
@@ -128,9 +138,10 @@ Promise<{ handle: string; host: string; address: string; running: boolean; manag
   let host: string;
   try { host = validateAgentPod(h, base).host; } catch { host = new URL(base).host.toLowerCase(); }
   const running = s.agentHandles.get(handle) === base;
-  // The management page's door takes its key once in the address and keeps
+  // The management page's door takes a key once in the address and keeps
   // the browser in with a cookie. Only the owner's own page ever asks for
-  // this description, so the key rides on the link for a running account.
+  // this description, so a two-minute key rides on the link for a running
+  // account.
   // Read from the pod, where the key always is, rather than from what this
   // process happens to hold: an account still starting has none in memory.
   let key: string | undefined;
@@ -139,7 +150,7 @@ Promise<{ handle: string; host: string; address: string; running: boolean; manag
   }
   const door = base.replace(/\/$/u, '') + s.uiPath;
   return { handle, host, address: `@${handle}@${host}`, running,
-    manage: key ? `${door}?dk-token=${encodeURIComponent(key)}` : door };
+    manage: key ? await manageLink(h, base, key) : door };
 }
 
 /** The reverse: stop the identity and let the pod be plain LDP again. */
