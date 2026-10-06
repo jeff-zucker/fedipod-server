@@ -1,5 +1,10 @@
 # Changes
 
+## 2026-10-05 — version 0.32.2, on fedipod 1.49.2
+
+**On a server with suffixed pods, a phone app can sign in with the account's
+password.**
+
 ## 2026-10-05 — version 0.32.1, on fedipod 1.49.1
 
 **The server does less work as accounts are added.** Every write is checked
