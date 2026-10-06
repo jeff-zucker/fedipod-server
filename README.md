@@ -140,15 +140,10 @@ what it expects: nodeinfo, the client API under `/api/`, sign-in under
 at `/ap/outbox`. The owner's own pages — the record and the bundled web client — are behind
 `agentUiPath`, which the door secret guards.
 
-<!-- CLAUDE 2026-10-05 — correction: it said "the authorize screen names what is asking and where the code will be sent before the owner approves it with the password"; the owner now approves at their pod, or with a password if one is set. Delete these markers when done. -->
 The client API answers any origin, the way any Mastodon server does, so a
 browser client works too: it registers an app, and the owner is asked "Allow
 the app to access your @you@server account?" before anything is granted. They
-answer by signing in at their own pod and pressing Allow, or with the account's
-password if one is set. The authorization code is bound to the client's
-registered redirect, and only that client, holding its secret, can exchange it
-for a token.
-<!-- /CLAUDE -->
+answer by signing in at their own pod and pressing Allow.
 
 An ActivityPub client needs none of that arranged by hand. The actor says
 where to sign in, and `/.well-known/oauth-authorization-server` says the same
@@ -177,22 +172,8 @@ opt-in rather than half-working.
 identities it runs. For a self-hoster that is their own machine either way;
 for anyone hosting other people, it is a promise being made to them.
 
-<!-- CLAUDE 2026-10-05 — correction: it said "Sign-in needs a password … /oauth/authorize refuses until the identity has one"; an owner signs an app in at their pod with no password. Delete these markers when done. -->
 **Signing an app in.** An owner signs an app in by signing in at their own pod
-and pressing Allow. To use a password instead, set one once through the
-owner's door, with that identity's own door secret:
-<!-- /CLAUDE -->
-
-```
-# subdomained pod:
-curl -X POST https://mei.example.org/fp/config \
-  -H 'x-dk-token: THE_DOOR_SECRET_FROM_THE_OPT_IN_REPLY' -H 'content-type: application/json' \
-  -d '{"password":"the one you will type into your phone"}'
-# suffixed pod — the door is under the pod's path:
-curl -X POST https://server.example/aisha/fp/config \
-  -H 'x-dk-token: THE_DOOR_SECRET_FROM_THE_OPT_IN_REPLY' -H 'content-type: application/json' \
-  -d '{"password":"the one you will type into your phone"}'
-```
+and pressing Allow.
 
 **Some pod paths stop being served.** On a subdomained pod the paths above
 belong to the identity, so pod resources at those names — a container called

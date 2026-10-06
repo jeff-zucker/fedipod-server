@@ -39,7 +39,6 @@ const BASE = `http://localhost:${PORT}/`;
 const ALICE = `alice.localhost:${PORT}`;
 const POD = `http://${ALICE}/`;
 const POD2 = `http://carol.localhost:${PORT}/`;
-const PASSWORD = 'correct horse battery staple';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fedipod-e2e-'));
 const dataDir = path.join(tmp, 'agent');
@@ -283,46 +282,38 @@ try {
   })).json();
   check(Boolean(appReg.client_id), 'the client registers');
 
-  // Without a password the only way in is the owner's own pod: the authorize
-  // page sends them there, and nothing is granted until they come back signed in.
-  const noPassword = await fetch(`${POD}oauth/authorize?client_id=${appReg.client_id
+  // The only way in is the owner's own pod: the authorize page sends them
+  // there, and nothing is granted until they come back signed in.
+  const signinPage = await fetch(`${POD}oauth/authorize?client_id=${appReg.client_id
   }&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=read+write`);
-  const noPasswordPage = await noPassword.text();
-  check(noPassword.status === 200 && /oauth\/session\/signin\.mjs/.test(noPasswordPage),
-    'without a password, sign-in goes through the owner\'s pod');
-  check(noPasswordPage.includes(`<title>Allow e2e to access your @alice@${ALICE} account?</title>`)
-    && noPasswordPage.includes(`<h1>Allow e2e to access your @alice@${ALICE} account?</h1>`)
-    && !/<p>Allow/.test(noPasswordPage)
-    && noPasswordPage.includes(`<a id="webid" href="${POD}profile/card#me" hidden></a>`)
-    && />Allow<\/button>/.test(noPasswordPage) && />Cancel<\/button>/.test(noPasswordPage),
+  const signinHtml = await signinPage.text();
+  check(signinPage.status === 200 && /oauth\/session\/signin\.mjs/.test(signinHtml),
+    'sign-in goes through the owner\'s pod');
+  check(signinHtml.includes(`<title>Allow e2e to access your @alice@${ALICE} account?</title>`)
+    && signinHtml.includes(`<h1>Allow e2e to access your @alice@${ALICE} account?</h1>`)
+    && !/<p>Allow/.test(signinHtml)
+    && signinHtml.includes(`<a id="webid" href="${POD}profile/card#me" hidden></a>`)
+    && />Allow<\/button>/.test(signinHtml) && />Cancel<\/button>/.test(signinHtml),
   'the page asks one question: may this app act as your Fediverse address');
 
-  // The operator sets one through their own door, which the secret guards.
   const noGate = await fetch(`${POD}fp/config`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ password: PASSWORD }),
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
   });
   check(noGate.status === 401 || noGate.status === 403, "the operator's door is shut without the secret");
-  const setPassword = await fetch(`${POD}fp/config`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-dk-token': doorSecret('alice') },
-    body: JSON.stringify({ password: PASSWORD }),
-  });
-  check(setPassword.status === 200, 'and open with it, to set the password');
 
-  const authorize = await fetch(`${POD}oauth/authorize`, {
+  // Allow, as the page sends it: the owner's pod sign-in, proved with its
+  // token and DPoP proof.
+  const aliceSession = await sessionFor('alice@example.com', POD);
+  const authorize = await aliceSession.fetch(`${POD}oauth/authorize`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: appReg.client_id, redirect_uri: 'urn:ietf:wg:oauth:2.0:oob',
-      response_type: 'code', scope: 'read write follow', password: PASSWORD,
+      response_type: 'code', scope: 'read write follow',
     }).toString(),
-    redirect: 'manual',
   });
-  const code = authorize.status === 200
-    ? (await authorize.json()).code
-    : new URL(authorize.headers.get('location') ?? 'http://x/', 'http://x/').searchParams.get('code');
-  check(Boolean(code), 'the password buys an authorization code');
+  const code = authorize.status === 200 ? (await authorize.json()).code : null;
+  check(Boolean(code), `the owner's pod sign-in buys an authorization code (${authorize.status})`);
 
   // A registered client proves its secret and names the redirect the code was
   // bound to — the code alone is not a token.

@@ -42,7 +42,6 @@ const BASE = `http://localhost:${PORT}/`;
 const HOST = `localhost:${PORT}`;
 const POD = `${BASE}aisha/`;                 // @aisha lives here, on a path
 const POD2 = `${BASE}tamara/`;               // and @tamara beside her, same origin
-const PASSWORD = 'correct horse battery staple';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fedipod-suffix-'));
 const dataDir = path.join(tmp, 'agent');
@@ -277,16 +276,16 @@ try {
   })).json();
   check(Boolean(appReg.client_id), 'a client registers at the pod-path apps endpoint');
 
-  const setPassword = await fetch(`${POD}fp/config`, {
+  const ownDoor = await fetch(`${POD}fp/config`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-dk-token': doorSecret('aisha') },
-    body: JSON.stringify({ password: PASSWORD }),
+    body: '{}',
   });
-  check(setPassword.status === 200, "the operator's door under /aisha/fp/ opens with its own secret");
+  check(ownDoor.status === 200, "the operator's door under /aisha/fp/ opens with its own secret");
   const crossDoor = await fetch(`${POD}fp/config`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-dk-token': doorSecret('tamara') },
-    body: JSON.stringify({ password: PASSWORD }),
+    body: '{}',
   });
   check(crossDoor.status === 401 || crossDoor.status === 403,
     "and tamara's secret does not open aisha's door on the shared origin");
@@ -297,26 +296,24 @@ try {
   check(crossReturn.status === 400,
     `a sign-in that returns to another pod's page on the shared host is refused (${crossReturn.status})`);
 
-  // The password form a phone app shows posts back under the pod's own path;
-  // posting to the host's root would reach no account at all.
-  const form = await (await fetch(`${POD}oauth/authorize?${new URLSearchParams({
+  // The sign-in page a phone app shows loads its script from under the pod's
+  // own path; the host's root would reach no account at all.
+  const page = await (await fetch(`${POD}oauth/authorize?${new URLSearchParams({
     client_id: appReg.client_id, redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', response_type: 'code' })}`)).text();
-  check(form.includes(`action="${new URL(POD).pathname}oauth/authorize"`),
-    "the password form posts back under the pod's own path");
+  check(page.includes(`src="${new URL(POD).pathname}oauth/session/signin.mjs"`),
+    "the sign-in page works under the pod's own path");
 
-  const authorize = await fetch(`${POD}oauth/authorize`, {
+  const aishaSession = await sessionFor('aisha@example.com', POD);
+  const authorize = await aishaSession.fetch(`${POD}oauth/authorize`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: appReg.client_id, redirect_uri: 'urn:ietf:wg:oauth:2.0:oob',
-      response_type: 'code', scope: 'read write follow', password: PASSWORD,
+      response_type: 'code', scope: 'read write follow',
     }).toString(),
-    redirect: 'manual',
   });
-  const code = authorize.status === 200
-    ? (await authorize.json()).code
-    : new URL(authorize.headers.get('location') ?? 'http://x/', 'http://x/').searchParams.get('code');
-  check(Boolean(code), 'the password buys an authorization code at the pod path');
+  const code = authorize.status === 200 ? (await authorize.json()).code : null;
+  check(Boolean(code), `the owner's pod sign-in buys an authorization code at the pod path (${authorize.status})`);
   const token = await (await fetch(`${POD}oauth/token`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
