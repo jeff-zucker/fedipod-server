@@ -50,7 +50,7 @@ config/server.json     the snippet an operator imports: the handler in the water
                        activity+json / ld+json relabelling
 test/server.test.mjs   claims, the adapter, the directory: no CSS needed
 test/live-css.mjs      the handler over a real CSS store stack: opt-in, the transport, the lease
-test/e2e/live-agent.mjs    a real CSS with subdomained pods, used as a client would (92 checks)
+test/e2e/live-agent.mjs    a real CSS with subdomained pods, used as a client would (91 checks)
 test/e2e/live-suffix.mjs   the same with suffixed pods (33 checks)
 tmp/                   the local Server's data (gitignored)
 ```
