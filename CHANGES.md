@@ -1,5 +1,12 @@
 # Changes
 
+## 2026-10-09 — version 0.33.0, on fedipod 1.50.0
+
+**An app is signed in by signing in at your pod and pressing Allow.** The
+separate password an account could set for signing apps in is gone. An account
+that had one set signs its apps in at its pod from now on; apps already signed
+in stay signed in.
+
 ## 2026-10-05 — version 0.32.2, on fedipod 1.49.2
 
 **On a server with suffixed pods, a phone app can sign in with the account's

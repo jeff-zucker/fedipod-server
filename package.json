@@ -1,6 +1,6 @@
 {
   "name": "fedipod-server",
-  "version": "0.32.2",
+  "version": "0.33.0",
   "description": "The FediPod Server: a full ActivityPub server as a Community Solid Server component.",
   "license": "MIT",
   "author": "Jeff Zucker",
@@ -22,7 +22,7 @@
     "@solid/community-server": "^7.0.0"
   },
   "dependencies": {
-    "fedipod": "^1.49.2"
+    "fedipod": "^1.50.0"
   },
   "devDependencies": {
     "@fedify/fedify": "^2.3.4",
