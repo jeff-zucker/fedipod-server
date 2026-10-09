@@ -619,13 +619,18 @@ try {
     await Promise.all(junk.slice(i, i + 50).map((n) => fetch(`${podInbox}flood-${n}.json`, {
       method: 'PUT', headers: { 'content-type': 'application/activity+json' }, body: 'not an activity' })));
   }
-  const unsignedFull = await fetch(podInbox, { method: 'POST',
-    headers: { 'content-type': 'application/activity+json' }, body: follow('heidi', 90) });
+  // The identity works through its mail meanwhile, so the inbox hovers at a
+  // thousand and one item may land as a slot opens: each check sends twenty.
+  const twenty = (send) => Promise.all(Array.from({ length: 20 }, (_, i) => send(i)));
+  const statuses = (responses) => responses.map((r) => r.status).join(' ');
+  const unsignedBurst = await twenty((i) => fetch(podInbox, { method: 'POST',
+    headers: { 'content-type': 'application/activity+json' }, body: follow('heidi', 900 + i) }));
+  const unsignedFull = unsignedBurst.find((r) => r.status === 503) ?? unsignedBurst[0];
   check(unsignedFull.status === 503 && unsignedFull.headers.get('retry-after') === '600',
-    `with a thousand waiting, an unsigned delivery is told to try again in ten minutes (${unsignedFull.status})`);
-  const besideFull = await fetch(`${podInbox}flood-more.json`, { method: 'PUT',
-    headers: { 'content-type': 'application/activity+json' }, body: 'not an activity' });
-  check(besideFull.status === 503, `and so is one written straight into the inbox (${besideFull.status})`);
+    `with a thousand waiting, an unsigned delivery is told to try again in ten minutes (${statuses(unsignedBurst)})`);
+  const besideBurst = await twenty((i) => fetch(`${podInbox}flood-more-${i}.json`, { method: 'PUT',
+    headers: { 'content-type': 'application/activity+json' }, body: 'not an activity' }));
+  check(besideBurst.some((r) => r.status === 503), `and so is one written straight into the inbox (${statuses(besideBurst)})`);
   const signedFull = await fetch(await signedPost('ivan', follow('ivan', 91), remoteKeys.privateKey));
   check(signedFull.status === 202, `while a signed delivery still lands (${signedFull.status})`);
   check(await until('as the identity works through them, unsigned mail is taken again',
